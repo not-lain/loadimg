@@ -23,7 +23,7 @@ def download_image(url: str):
 SUPPORTED_TYPES = Union[str, np.ndarray, Image.Image]
 
 
-def load_image(
+def load_img(
     img: SUPPORTED_TYPES,
     # output_type=Literal["PIL"]
 ) -> Any:
