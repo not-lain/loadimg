@@ -12,6 +12,12 @@ import numpy as np
 def download_image(url: str):
     """A function to get a Pillow image from a URL."""
     try:
+        if "github" in url and "raw=true" not in url:
+            url += "?raw=true"
+        if "drive" in url and "uc?id=" not in url:
+            if "/view" in url or url.endswith("/"):
+                url = "/".join(url.split("/")[:-1])
+            url = "https://drive.google.com/uc?id=" + url.split("/")[-1]
         response = requests.get(url, timeout=5)  # Timeout set to 5 seconds
         response.raise_for_status()  # Raise an exception for HTTP errors
         return Image.open(BytesIO(response.content))
@@ -27,7 +33,17 @@ def load_img(
     img: SUPPORTED_TYPES,
     # output_type=Literal["PIL"]
 ) -> Any:
-    """takes an input image of type any and returns"""
+    """
+    takes an input image of type any and returns a pillow image
+    Args :
+
+    how to use :
+
+    ```python
+    from loadimg import load_img
+    load_img(img)
+    ```
+    """
     # file path or url
     if isinstance(img, str):
         if path.isfile(img):
