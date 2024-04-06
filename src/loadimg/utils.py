@@ -53,7 +53,7 @@ def load_img(
         return np.array(img)
     elif output_type == "str":
         secure_temp_dir = tempfile.mkdtemp(prefix="loadimg_", suffix="_folder")
-        path = os.path.join(secure_temp_dir, "temp_image.jpg")
+        path = os.path.join(secure_temp_dir, "temp_image.png")
         img.save(path)
         return path
 
