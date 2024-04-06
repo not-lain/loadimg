@@ -1,9 +1,10 @@
 from typing import Any, Literal, Union
+from io import BytesIO
+import os
 import requests
 from PIL import Image
-from io import BytesIO
-from os import path
 import numpy as np
+import tempfile
 # TODO:
 # support output_type parameter to change the output type
 # support other input types such as lists, Bytes, tensors, torch tensors, ...
@@ -26,12 +27,13 @@ def download_image(url: str):
         return None  # Return None if there's an error
 
 
-SUPPORTED_TYPES = Union[str, np.ndarray, Image.Image]
+SUPPORTED_INPUT_TYPES = Union[str, np.ndarray, Image.Image]
+SUPPORTED_OUTPUT_TYPES = Literal["pil", "numpy", "str"]
 
 
 def load_img(
-    img: SUPPORTED_TYPES,
-    # output_type=Literal["PIL"]
+    img: Union[str, np.ndarray, Image.Image],
+    output_type: Literal["pil", "numpy", "str"] = "pil",
 ) -> Any:
     """
     takes an input image of type any and returns a pillow image
@@ -41,12 +43,26 @@ def load_img(
 
     ```python
     from loadimg import load_img
-    load_img(img)
+    load_img(img,output_type="pil")
     ```
     """
+    img = load(img)
+    if output_type == "pil":
+        return img
+    elif output_type == "numpy":
+        return np.array(img)
+    elif output_type == "str":
+        secure_temp_dir = tempfile.mkdtemp(prefix="loadimg_", suffix="_folder")
+        path = os.path.join(secure_temp_dir, "temp_image.jpg")
+        img.save(path)
+        return path
+
+
+def load(img: SUPPORTED_INPUT_TYPES) -> Image.Image:
+    "loads the img"
     # file path or url
     if isinstance(img, str):
-        if path.isfile(img):
+        if os.path.isfile(img):
             return Image.open(img)
         else:
             out = download_image(img)
@@ -60,9 +76,3 @@ def load_img(
     # pillow image
     elif isinstance(img, Image.Image):
         return img
-    else:
-        raise ValueError(
-            f"""expected one of the following types :{SUPPORTED_TYPES.__args__}, 
-            but got {type(img)}, please head to https://github.com/not-lain/loadimg/issues and past your input type so we will support it soon
-            """
-        )
