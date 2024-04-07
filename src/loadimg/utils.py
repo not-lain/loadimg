@@ -15,10 +15,12 @@ def download_image(url: str):
     try:
         if "github" in url and "raw=true" not in url:
             url += "?raw=true"
-        if "drive" in url and "uc?id=" not in url:
+        elif "drive" in url and "uc?id=" not in url:
             if "/view" in url or url.endswith("/"):
                 url = "/".join(url.split("/")[:-1])
             url = "https://drive.google.com/uc?id=" + url.split("/")[-1]
+        elif "hf.co" or "huggingface.co" in url : 
+            url = url.replace("/blob/","/resolve")
         response = requests.get(url, timeout=5)  # Timeout set to 5 seconds
         response.raise_for_status()  # Raise an exception for HTTP errors
         return Image.open(BytesIO(response.content))

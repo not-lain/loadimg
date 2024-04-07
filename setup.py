@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="loadimg",
-    version="0.1.1",
+    version="0.1.2",
     description="a python package for loading images",
     long_description=pathlib.Path("README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
