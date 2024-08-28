@@ -5,6 +5,7 @@ import requests
 from PIL import Image
 import numpy as np
 import tempfile
+import base64
 # TODO:
 # support output_type parameter to change the output type
 # support other input types such as lists, Bytes, tensors, torch tensors, ...
@@ -29,13 +30,13 @@ def download_image(url: str):
         return None  # Return None if there's an error
 
 
-SUPPORTED_INPUT_TYPES = Union[str, np.ndarray, Image.Image]
-SUPPORTED_OUTPUT_TYPES = Literal["pil", "numpy", "str"]
+SUPPORTED_INPUT_TYPES = Union[str, bytes, np.ndarray, Image.Image]
+SUPPORTED_OUTPUT_TYPES = Literal["pil", "numpy", "str", "base64"]
 
 
 def load_img(
-    img: Union[str, np.ndarray, Image.Image],
-    output_type: Literal["pil", "numpy", "str"] = "pil",
+    img: Union[str, bytes, np.ndarray, Image.Image],
+    output_type: Literal["pil", "numpy", "str", "base64"] = "pil",
 ) -> Any:
     """
     takes an input image of type any and returns a pillow image
@@ -58,12 +59,23 @@ def load_img(
         path = os.path.join(secure_temp_dir, "temp_image.png")
         img.save(path)
         return path
+    elif output_type == "base64":
+        img_file = BytesIO()
+        img.save(img_file, format="JPEG")
+        img_bytes = img_file.getvalue()
+        img_b64 = base64.b64encode(img_bytes)
+        return img_b64
 
 
 def load(img: SUPPORTED_INPUT_TYPES) -> Image.Image:
     "loads the img"
+    # base64 (str or bytes)
+    if isBase64(img):
+        image_bytes = base64.b64decode(img)
+        image_file = BytesIO(image_bytes)
+        return Image.open(image_file)
     # file path or url
-    if isinstance(img, str):
+    elif isinstance(img, str):
         if os.path.isfile(img):
             return Image.open(img)
         else:
@@ -78,3 +90,17 @@ def load(img: SUPPORTED_INPUT_TYPES) -> Image.Image:
     # pillow image
     elif isinstance(img, Image.Image):
         return img
+
+def isBase64(sb):
+        """
+        checks if the input object is base64
+        """
+        try:
+            if isinstance(sb, str):
+                    # If there's any unicode here, an exception will be thrown and the function will return false
+                    sb_bytes = bytes(sb, 'ascii')
+            elif isinstance(sb, bytes):
+                    sb_bytes = sb
+            return base64.b64encode(base64.b64decode(sb_bytes)) == sb_bytes
+        except Exception:
+            return False
