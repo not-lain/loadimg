@@ -61,7 +61,7 @@ def load_img(
         return path
     elif output_type == "base64":
         img_file = BytesIO()
-        img.save(img_file, format="JPEG")
+        img.save(img_file, format="PNG")
         img_bytes = img_file.getvalue()
         img_b64 = base64.b64encode(img_bytes)
         return img_b64
