@@ -39,7 +39,7 @@ def load_img(
     output_type: Literal["pil", "numpy", "str", "base64"] = "pil",
 ) -> Any:
     """
-    takes an input image of type any and returns a pillow image
+    takes an input image of type any and returns an image in any one of the supported output types
     Args :
 
     how to use :
@@ -68,7 +68,7 @@ def load_img(
 
 
 def load(img: SUPPORTED_INPUT_TYPES) -> Image.Image:
-    "loads the img"
+    """loads the img and returns a pillow image"""
     # base64 (str or bytes)
     if isBase64(img):
         image_bytes = base64.b64decode(img)
