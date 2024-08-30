@@ -2,7 +2,7 @@ import pathlib
 from setuptools import find_packages, setup
 
 def get_version() -> str:
-    rel_path = "src/pxia/__init__.py"
+    rel_path = "src/loadimg/__init__.py"
     with open(rel_path, "r") as fp:
         for line in fp.read().splitlines():
             if line.startswith("__version__"):
