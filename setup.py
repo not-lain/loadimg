@@ -1,9 +1,18 @@
 import pathlib
 from setuptools import find_packages, setup
 
+def get_version() -> str:
+    rel_path = "src/pxia/__init__.py"
+    with open(rel_path, "r") as fp:
+        for line in fp.read().splitlines():
+            if line.startswith("__version__"):
+                delim = '"' if '"' in line else "'"
+                return line.split(delim)[1]
+    raise RuntimeError("Unable to find version string.")
+
 setup(
     name="loadimg",
-    version="0.1.2",
+    version=get_version(),
     description="a python package for loading images",
     long_description=pathlib.Path("README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
