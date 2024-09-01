@@ -102,7 +102,9 @@ def load(img, input_type="auto") -> Image.Image:
         elif isinstance(img, Image.Image):
             input_type = "pil"
         else:
-            raise ValueError("Could not determine input type automatically.")
+            raise ValueError(
+                f"Invalid input type: {input_type}. Expected one of: 'base64', 'file', 'url', 'numpy', 'pil'"
+            )
 
     if input_type == "base64":
         if isinstance(img, str):
@@ -127,7 +129,9 @@ def load(img, input_type="auto") -> Image.Image:
     elif input_type == "pil":
         return img
     else:
-        raise ValueError(f"Invalid input type: {input_type}")
+        raise ValueError(
+            f"Invalid input type: {input_type}. Expected one of: 'base64', 'file', 'url', 'numpy', 'pil'"
+        )
 
 
 def isBase64(sb):
@@ -143,8 +147,3 @@ def isBase64(sb):
         return base64.b64encode(base64.b64decode(sb_bytes)) == sb_bytes
     except Exception:
         return False
-
-
-if __name__ == "__main__":
-    img_str = """data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABYAAAAWCAYAAADEtGw7AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAwSURBVEhLY7SxsfnPQAPABKWpDkYNhoNRg+Fg1GA4GDUYDkYNhoNRg+FgqBnMwAAAqlsB32Fk5YcAAAAASUVORK5CYII="""
-    print(load_img(img=img_str, output_type="str"))
