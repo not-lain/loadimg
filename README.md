@@ -20,8 +20,8 @@ Supported types
 
 ## Contributions
 
-- [x] thanks to @KingNish24 for improving base64 support and adding the `input_type` parameter
-- [x] thanks to @Saptarshi-Bandopadhyay for supporting base64 and improving the docstrings
+- [x] thanks to [@KingNish24](https://github.com/KingNish24) for improving base64 support and adding the `input_type` parameter
+- [x] thanks to [@Saptarshi-Bandopadhyay](https://github.com/Saptarshi-Bandopadhyay) for supporting base64 and improving the docstrings
 
 <a href="https://github.com/not-lain/loadimg/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=not-lain/loadimg" />
