@@ -1,4 +1,4 @@
-from typing import Any, Literal, Union
+from typing import Any, Literal, Optional, Union
 from io import BytesIO
 import os
 import requests
@@ -7,6 +7,7 @@ import numpy as np
 import tempfile
 import base64
 import re
+import uuid
 
 # TODO:
 # support other input types such as lists, tensors, ...
@@ -48,16 +49,19 @@ def load_img(
 
         # Load an image from a NumPy array and return it as a base64 string.
         img = load_img(img=np.array(...), output_type="base64")
-        ```
-    """
-    img = load(img, input_type)
+        """
+    img, original_name = load(img, input_type)
     if output_type == "pil":
         return img
     elif output_type == "numpy":
         return np.array(img)
     elif output_type == "str":
         secure_temp_dir = tempfile.mkdtemp(prefix="loadimg_", suffix="_folder")
-        path = os.path.join(secure_temp_dir, "temp_image.png")
+        if original_name:
+            file_name = original_name
+        else:
+            file_name = f"{uuid.uuid4()}.png"
+        path = os.path.join(secure_temp_dir, file_name)
         img.save(path)
         return path
     elif output_type == "base64":
@@ -87,8 +91,10 @@ def download_image(url: str):
         return None
 
 
-def load(img, input_type="auto") -> Image.Image:
-    """Loads an image from various sources and returns it as a Pillow Image."""
+def load(img, input_type="auto") -> tuple[Image.Image, Optional[str]]:
+    """Loads an image from various sources and returns it as a Pillow Image along with the original file name if available."""
+    original_name = None
+    
     if input_type == "auto":
         if isBase64(img):
             input_type = "base64"
@@ -111,23 +117,25 @@ def load(img, input_type="auto") -> Image.Image:
             img = re.sub(r"^data:image\/[a-zA-Z]+;base64,", "", img)
             image_bytes = base64.b64decode(img)
             image_file = BytesIO(image_bytes)
-            return Image.open(image_file)
+            return Image.open(image_file), None
         else:
             image_bytes = base64.b64decode(img)
             image_file = BytesIO(image_bytes)
-            return Image.open(image_file)
+            return Image.open(image_file), None
     elif input_type == "file":
-        return Image.open(img)
+        original_name = os.path.basename(img)
+        return Image.open(img), original_name
     elif input_type == "url":
         out = download_image(img)
         if out is None:
             raise ValueError(f"could not download {img}")
         else:
-            return out
+            original_name = os.path.basename(img.split("?")[0])
+            return out, original_name
     elif input_type == "numpy":
-        return Image.fromarray(img)
+        return Image.fromarray(img), None
     elif input_type == "pil":
-        return img
+        return img, None
     else:
         raise ValueError(
             f"Invalid input type: {input_type}. Expected one of: 'base64', 'file', 'url', 'numpy', 'pil'"
