@@ -22,6 +22,7 @@ Supported types
 
 - [x] thanks to [@KingNish24](https://github.com/KingNish24) for improving base64 support and adding the `input_type` parameter
 - [x] thanks to [@Saptarshi-Bandopadhyay](https://github.com/Saptarshi-Bandopadhyay) for supporting base64 and improving the docstrings
+- [x] thanks to [@Abbhiishek](https://github.com/Abbhiishek) for improving image naming
 
 <a href="https://github.com/not-lain/loadimg/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=not-lain/loadimg" />
