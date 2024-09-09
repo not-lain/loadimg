@@ -1,5 +1,7 @@
 # loadimg
 
+[![Downloads](https://static.pepy.tech/badge/loadimg)](https://pepy.tech/project/loadimg)
+
 A python package for loading images
 
 ## How to use
