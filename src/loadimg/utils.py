@@ -49,6 +49,7 @@ def load_img(
 
         # Load an image from a NumPy array and return it as a base64 string.
         img = load_img(img=np.array(...), output_type="base64")
+        ```
         """
     img, original_name = load(img, input_type)
     if output_type == "pil":
@@ -82,7 +83,7 @@ def download_image(url: str):
                 url = "/".join(url.split("/")[:-1])
             url = "https://drive.google.com/uc?id=" + url.split("/")[-1]
         elif "hf.co" or "huggingface.co" in url:
-            url = url.replace("/blob/", "/resolve")
+            url = url.replace("/blob/", "/resolve/")
         response = requests.get(url, timeout=5)
         response.raise_for_status()
         return Image.open(BytesIO(response.content))
