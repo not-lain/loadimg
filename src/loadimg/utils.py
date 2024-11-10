@@ -66,11 +66,11 @@ def load_img(
         img.save(path)
         return path
     elif output_type == "base64":
-        img_file = BytesIO()
-        img.save(img_file, format="PNG")
-        img_bytes = img_file.getvalue()
-        img_b64 = base64.b64encode(img_bytes)
-        return img_b64
+        img_type = img.format or "PNG"
+        with BytesIO() as buffer:
+            img.save(buffer, format=img_type)
+            img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        return f"data:image/{img_type.lower()};base64,{img_str}"
 
 
 def download_image(url: str):
