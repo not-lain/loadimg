@@ -12,6 +12,7 @@ import uuid
 # TODO:
 # support other input types such as lists, tensors, ...
 
+
 def load_img(
     img: Union[str, bytes, np.ndarray, Image.Image],
     output_type: Literal["pil", "numpy", "str", "base64"] = "pil",
@@ -50,7 +51,7 @@ def load_img(
         # Load an image from a NumPy array and return it as a base64 string.
         img = load_img(img=np.array(...), output_type="base64")
         ```
-        """
+    """
     img, original_name = load(img, input_type)
     if output_type == "pil":
         return img
@@ -73,20 +74,41 @@ def load_img(
         return f"data:image/{img_type.lower()};base64,{img_str}"
 
 
+def starts_with(pattern: str, url: str):
+    """
+    Check if a URL starts with a given pattern, considering multiple prefixes.
+
+    Args:
+        pattern (str): The pattern to match at the start of the URL
+        url (str): The full URL to check
+
+    Returns:
+        bool: True if the URL starts with the pattern, False otherwise
+    """
+    return url.startswith(pattern) or url.startswith(f"https://{pattern}")
+
+
 def download_image(url: str):
     """Downloads an image from a URL and returns it as a Pillow Image."""
     try:
-        if "github" in url and "raw=true" not in url:
+        # GitHub raw file
+        if starts_with("github", url) and "raw=true" not in url:
             url += "?raw=true"
-        elif "drive" in url and "uc?id=" not in url:
+
+        # Google Drive URL
+        elif starts_with("drive", url) in url and "uc?id=" not in url:
             if "/view" in url or url.endswith("/"):
                 url = "/".join(url.split("/")[:-1])
             url = "https://drive.google.com/uc?id=" + url.split("/")[-1]
-        elif "hf.co" or "huggingface.co" in url:
+
+        # Hugging Face URL
+        elif starts_with("hf.co", url) or starts_with("huggingface.co", url) in url:
             url = url.replace("/blob/", "/resolve/")
+
         response = requests.get(url, timeout=5)
         response.raise_for_status()
         return Image.open(BytesIO(response.content))
+
     except requests.exceptions.RequestException as e:
         print(f"Error downloading image from {url}: {e}")
         return None
@@ -95,7 +117,7 @@ def download_image(url: str):
 def load(img, input_type="auto") -> tuple[Image.Image, Optional[str]]:
     """Loads an image from various sources and returns it as a Pillow Image along with the original file name if available."""
     original_name = None
-    
+
     if input_type == "auto":
         if isBase64(img):
             input_type = "base64"
