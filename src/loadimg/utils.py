@@ -96,13 +96,13 @@ def download_image(url: str):
             url += "?raw=true"
 
         # Google Drive URL
-        elif starts_with("drive", url) in url and "uc?id=" not in url:
+        elif starts_with("drive", url) and "uc?id=" not in url:
             if "/view" in url or url.endswith("/"):
                 url = "/".join(url.split("/")[:-1])
             url = "https://drive.google.com/uc?id=" + url.split("/")[-1]
 
         # Hugging Face URL
-        elif starts_with("hf.co", url) or starts_with("huggingface.co", url) in url:
+        elif starts_with("hf.co", url) or starts_with("huggingface.co", url):
             url = url.replace("/blob/", "/resolve/")
 
         response = requests.get(url, timeout=5)
