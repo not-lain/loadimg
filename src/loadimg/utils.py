@@ -96,7 +96,7 @@ def download_image(url: str):
             url += "?raw=true"
 
         # Google Drive URL
-        elif starts_with("drive", url) and "uc?id=" not in url:
+        elif starts_with("drive", url) and ("uc?id=" not in url):
             if "/view" in url or url.endswith("/"):
                 url = "/".join(url.split("/")[:-1])
             url = "https://drive.google.com/uc?id=" + url.split("/")[-1]
