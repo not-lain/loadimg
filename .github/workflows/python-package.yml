@@ -32,7 +32,7 @@ jobs:
       - name: Lint with ruff
         run: |
           # Run Ruff for linting
-          ruff .
+          ruff check .
       - name: Test with pytest
         run: |
           pytest
