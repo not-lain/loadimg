@@ -180,9 +180,14 @@ class ImageLoader:
             elif output_type == "numpy":
                 return np.array(img)
             elif output_type == "base64":
-                buffered = BytesIO()
-                img.save(buffered, format=img.format or "PNG")
-                return base64.b64encode(buffered.getvalue()).decode()
+                # buffered = BytesIO()
+                # img.save(buffered, format=img.format or "PNG")
+                # return base64.b64encode(buffered.getvalue()).decode()
+                img_type = img.format or "PNG"
+                with BytesIO() as buffer:
+                    img.save(buffer, format=img_type)
+                    img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                return f"data:image/{img_type.lower()};base64,{img_str}"
             elif output_type == "str":
                 # Save to temporary file with original extension if available
                 ext = Path(original_name).suffix if original_name else ".png"
@@ -215,9 +220,10 @@ class ImageLoader:
             input_type = self._determine_input_type(img)
 
         if input_type == "base64":
-            return self._load_from_base64_cached(
-                img if isinstance(img, str) else bytes(img)
-            )
+            img = re.sub(r"^data:image\/[a-zA-Z]+;base64,", "", img)
+            image_bytes = base64.b64decode(img)
+            image_file = BytesIO(image_bytes)
+            return Image.open(image_file), None
         elif input_type == "file":
             return self._load_from_file_cached(str(img))
         elif input_type == "url":
