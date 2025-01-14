@@ -1,180 +1,255 @@
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union, TypeAlias, Tuple
+from functools import lru_cache
+from pathlib import Path
+import re
 from io import BytesIO
-import os
+import base64
+import tempfile
+import uuid
 import requests
 from PIL import Image
 import numpy as np
-import tempfile
-import base64
-import re
-import uuid
 
-# TODO:
-# support other input types such as lists, tensors, ...
+# Type aliases
+ImageType: TypeAlias = Union[str, bytes, np.ndarray, Image.Image, Path]
+OutputType = Literal["pil", "numpy", "str", "base64"]
+InputType = Literal["auto", "base64", "file", "url", "numpy", "pil"]
+
+# Compile regex patterns once
+BASE64_PATTERN = re.compile(r"^data:image\/[a-zA-Z]+;base64,")
+
+
+class ImageLoader:
+    """A class to handle image loading from various sources and conversion to different formats."""
+
+    def __init__(self):
+        """Initialize the ImageLoader with a requests session and cached methods."""
+        self.session = requests.Session()
+        # Create separate cached methods for hashable inputs
+        self._load_from_url_cached = lru_cache(maxsize=128)(self._load_from_url)
+        self._load_from_file_cached = lru_cache(maxsize=128)(self._load_from_file)
+        self._load_from_base64_cached = lru_cache(maxsize=128)(self._load_from_base64)
+
+    @staticmethod
+    def _is_base64(data: Union[str, bytes]) -> bool:
+        """
+        Check if input is base64 encoded.
+
+        Args:
+            data: String or bytes to check
+
+        Returns:
+            bool: True if input is valid base64, False otherwise
+        """
+        try:
+            if isinstance(data, str):
+                data = BASE64_PATTERN.sub("", data)
+                data_bytes = bytes(data, "ascii")
+            else:
+                data_bytes = data
+            return base64.b64encode(base64.b64decode(data_bytes)) == data_bytes
+        except Exception:
+            return False
+
+    @staticmethod
+    def _determine_input_type(img: ImageType) -> InputType:
+        """
+        Determine the input type of the image.
+
+        Args:
+            img: Input image in any supported format
+
+        Returns:
+            InputType: Determined input type
+
+        Raises:
+            ValueError: If input type cannot be determined
+        """
+        if isinstance(img, np.ndarray):
+            return "numpy"
+        if isinstance(img, Image.Image):
+            return "pil"
+        if isinstance(img, Path):
+            return "file"
+        if isinstance(img, (str, bytes)):
+            if ImageLoader._is_base64(img):
+                return "base64"
+            if isinstance(img, str):
+                return "file" if Path(img).is_file() else "url"
+        raise ValueError(f"Cannot determine input type for {type(img)}")
+
+    def _load_from_url(self, url: str) -> Tuple[Image.Image, Optional[str]]:
+        """
+        Load image from URL with special handling for common platforms.
+
+        Args:
+            url: URL to load image from
+
+        Returns:
+            Tuple of (PIL Image, filename)
+
+        Raises:
+            ValueError: If image cannot be downloaded or loaded
+        """
+        # Handle special URLs
+        if "github.com" in url and "raw=true" not in url:
+            url += "?raw=true"
+        elif "drive.google.com" in url and "uc?id=" not in url:
+            file_id = url.split("/d/")[-1].split("/")[
+                0
+            ]  # Correct extraction of file_id
+            url = f"https://drive.google.com/uc?id={file_id}"
+        elif any(x in url for x in ["hf.co", "huggingface.co"]):
+            url = url.replace("/blob/", "/resolve/")
+
+        try:
+            response = self.session.get(url, timeout=5)
+            response.raise_for_status()
+            return Image.open(BytesIO(response.content)), Path(url).stem
+        except requests.exceptions.RequestException as e:
+            raise ValueError(f"Failed to download image from {url}: {e}")
+        except Exception as e:
+            raise ValueError(f"Failed to load image from {url}: {e}")
+
+    def _load_from_file(self, path: str) -> Tuple[Image.Image, str]:
+        """
+        Load image from file path.
+
+        Args:
+            path: Path to image file
+
+        Returns:
+            Tuple of (PIL Image, filename)
+
+        Raises:
+            ValueError: If file cannot be loaded
+        """
+        try:
+            path_obj = Path(path)
+            with open(
+                path_obj, "rb"
+            ) as f:  # Use context manager to ensure file is closed
+                return Image.open(f), path_obj.name
+        except Exception as e:
+            raise ValueError(f"Failed to load image from file {path}: {e}")
+
+    def _load_from_base64(self, data: Union[str, bytes]) -> Tuple[Image.Image, None]:
+        """
+        Load image from base64 data.
+
+        Args:
+            data: Base64 encoded image data
+
+        Returns:
+            Tuple of (PIL Image, None)
+
+        Raises:
+            ValueError: If base64 data cannot be decoded or loaded
+        """
+        try:
+            if isinstance(data, str):
+                data = BASE64_PATTERN.sub("", data)
+            image_bytes = base64.b64decode(data)
+            return Image.open(BytesIO(image_bytes)), None
+        except Exception as e:
+            raise ValueError(f"Failed to load image from base64 data: {e}")
+
+    def _convert_to_output_type(
+        self,
+        img: Image.Image,
+        output_type: OutputType,
+        original_name: Optional[str] = None,
+    ) -> Any:
+        """
+        Convert PIL Image to desired output type.
+
+        Args:
+            img: PIL Image to convert
+            output_type: Desired output format
+            original_name: Original filename if available
+
+        Returns:
+            Converted image in requested format
+
+        Raises:
+            ValueError: If conversion fails
+        """
+        try:
+            if output_type == "pil":
+                return img
+            elif output_type == "numpy":
+                return np.array(img)
+            elif output_type == "base64":
+                buffered = BytesIO()
+                img.save(buffered, format=img.format or "PNG")
+                return base64.b64encode(buffered.getvalue()).decode()
+            elif output_type == "str":
+                # Save to temporary file with original extension if available
+                ext = Path(original_name).suffix if original_name else ".png"
+                temp_dir = Path(tempfile.gettempdir())
+                temp_path = temp_dir / f"{uuid.uuid4()}{ext}"
+                img.save(temp_path)
+                return str(temp_path)
+            else:
+                raise ValueError(f"Invalid output type: {output_type}")
+        except Exception as e:
+            raise ValueError(f"Failed to convert image to {output_type}: {e}")
+
+    def load(
+        self, img: ImageType, input_type: InputType = "auto"
+    ) -> Tuple[Image.Image, Optional[str]]:
+        """
+        Load image from various sources with caching for hashable inputs.
+
+        Args:
+            img: Input image in any supported format
+            input_type: Type of input image, or "auto" to determine automatically
+
+        Returns:
+            Tuple of (PIL Image, filename if available)
+
+        Raises:
+            ValueError: If image cannot be loaded
+        """
+        if input_type == "auto":
+            input_type = self._determine_input_type(img)
+
+        if input_type == "base64":
+            return self._load_from_base64_cached(
+                img if isinstance(img, str) else bytes(img)
+            )
+        elif input_type == "file":
+            return self._load_from_file_cached(str(img))
+        elif input_type == "url":
+            return self._load_from_url_cached(str(img))
+        elif input_type == "numpy":
+            # Ensure the array is in a supported format (uint8)
+            if img.dtype != np.uint8:
+                img = img.astype(np.uint8)
+            return Image.fromarray(img), None
+        elif input_type == "pil":
+            return img, None
+
+        raise ValueError(f"Invalid input type: {input_type}")
 
 
 def load_img(
-    img: Union[str, bytes, np.ndarray, Image.Image],
-    output_type: Literal["pil", "numpy", "str", "base64"] = "pil",
-    input_type: Literal["auto", "base64", "file", "url", "numpy", "pil"] = "auto",
+    img: ImageType, output_type: OutputType = "pil", input_type: InputType = "auto"
 ) -> Any:
-    """Loads an image from various sources and returns it in a specified format.
+    """
+    Load an image from various sources and return it in the specified format.
 
     Args:
-        img: The input image. Can be a base64 string, a file path, a URL,
-            a NumPy array, or a Pillow Image object.
-        output_type: The desired output type. Can be "pil" (Pillow Image),
-            "numpy" (NumPy array), "str" (file path), or "base64" (base64 string).
-        input_type: The type of the input image. If set to "auto", the function
-            will try to automatically determine the type. Otherwise, it will
-            assume the input is of the specified type.
+        img: Input image (base64 string, file path, URL, NumPy array, or PIL Image)
+        output_type: Desired output type ("pil", "numpy", "str", or "base64")
+        input_type: Type of input image ("auto", "base64", "file", "url", "numpy", "pil")
 
     Returns:
-        The loaded image in the specified output type.
+        The loaded image in the specified output type
 
     Raises:
-        ValueError: If the input type is invalid or if the image cannot be loaded.
-
-    Examples:
-        ```python
-        from loadimg import load_img
-
-        # Load an image from a base64 string and return it as a Pillow Image.
-        img = load_img(img="data:image/png;base64,...", output_type="pil")
-
-        # Load an image from a file path and return it as a NumPy array.
-        img = load_img(img="path/to/image.jpg", output_type="numpy")
-
-        # Load an image from a URL and return it as a file path.
-        img = load_img(img="https://example.com/image.png", output_type="str")
-
-        # Load an image from a NumPy array and return it as a base64 string.
-        img = load_img(img=np.array(...), output_type="base64")
-        ```
+        ValueError: If input type is invalid or image cannot be loaded
     """
-    img, original_name = load(img, input_type)
-    if output_type == "pil":
-        return img
-    elif output_type == "numpy":
-        return np.array(img)
-    elif output_type == "str":
-        secure_temp_dir = tempfile.mkdtemp(prefix="loadimg_", suffix="_folder")
-        if original_name:
-            file_name = original_name
-        else:
-            file_name = f"{uuid.uuid4()}.png"
-        path = os.path.join(secure_temp_dir, file_name)
-        img.save(path)
-        return path
-    elif output_type == "base64":
-        img_type = img.format or "PNG"
-        with BytesIO() as buffer:
-            img.save(buffer, format=img_type)
-            img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
-        return f"data:image/{img_type.lower()};base64,{img_str}"
-
-
-def starts_with(pattern: str, url: str):
-    """
-    Check if a URL starts with a given pattern, considering multiple prefixes.
-
-    Args:
-        pattern (str): The pattern to match at the start of the URL
-        url (str): The full URL to check
-
-    Returns:
-        bool: True if the URL starts with the pattern, False otherwise
-    """
-    return url.startswith(pattern) or url.startswith(f"https://{pattern}")
-
-
-def download_image(url: str):
-    """Downloads an image from a URL and returns it as a Pillow Image."""
-    try:
-        # GitHub raw file
-        if starts_with("github", url) and "raw=true" not in url:
-            url += "?raw=true"
-
-        # Google Drive URL
-        elif starts_with("drive", url) and ("uc?id=" not in url):
-            if "/view" in url or url.endswith("/"):
-                url = "/".join(url.split("/")[:-1])
-            url = "https://drive.google.com/uc?id=" + url.split("/")[-1]
-
-        # Hugging Face URL
-        elif starts_with("hf.co", url) or starts_with("huggingface.co", url):
-            url = url.replace("/blob/", "/resolve/")
-
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        return Image.open(BytesIO(response.content))
-
-    except requests.exceptions.RequestException as e:
-        print(f"Error downloading image from {url}: {e}")
-        return None
-
-
-def load(img, input_type="auto") -> tuple[Image.Image, Optional[str]]:
-    """Loads an image from various sources and returns it as a Pillow Image along with the original file name if available."""
-    original_name = None
-
-    if input_type == "auto":
-        if isBase64(img):
-            input_type = "base64"
-        elif isinstance(img, str):
-            if os.path.isfile(img):
-                input_type = "file"
-            else:
-                input_type = "url"
-        elif isinstance(img, np.ndarray):
-            input_type = "numpy"
-        elif isinstance(img, Image.Image):
-            input_type = "pil"
-        else:
-            raise ValueError(
-                f"Invalid input type: {input_type}. Expected one of: 'base64', 'file', 'url', 'numpy', 'pil'"
-            )
-
-    if input_type == "base64":
-        if isinstance(img, str):
-            img = re.sub(r"^data:image\/[a-zA-Z]+;base64,", "", img)
-            image_bytes = base64.b64decode(img)
-            image_file = BytesIO(image_bytes)
-            return Image.open(image_file), None
-        else:
-            image_bytes = base64.b64decode(img)
-            image_file = BytesIO(image_bytes)
-            return Image.open(image_file), None
-    elif input_type == "file":
-        original_name = os.path.basename(img)
-        return Image.open(img), original_name
-    elif input_type == "url":
-        out = download_image(img)
-        if out is None:
-            raise ValueError(f"could not download {img}")
-        else:
-            original_name = os.path.basename(img.split("?")[0])
-            return out, original_name
-    elif input_type == "numpy":
-        return Image.fromarray(img), None
-    elif input_type == "pil":
-        return img, None
-    else:
-        raise ValueError(
-            f"Invalid input type: {input_type}. Expected one of: 'base64', 'file', 'url', 'numpy', 'pil'"
-        )
-
-
-def isBase64(sb):
-    """
-    checks if the input object is base64
-    """
-    try:
-        if isinstance(sb, str):
-            sb = re.sub(r"^data:image\/[a-zA-Z]+;base64,", "", sb)
-            sb_bytes = bytes(sb, "ascii")
-        elif isinstance(sb, bytes):
-            sb_bytes = sb
-        return base64.b64encode(base64.b64decode(sb_bytes)) == sb_bytes
-    except Exception:
-        return False
+    loader = ImageLoader()
+    img_pil, original_name = loader.load(img, input_type)
+    return loader._convert_to_output_type(img_pil, output_type, original_name)
