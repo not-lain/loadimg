@@ -2,7 +2,7 @@
 
 [![Downloads](https://static.pepy.tech/badge/loadimg)](https://pepy.tech/project/loadimg)
 
-A python package for loading images
+A python package for loading and converting images
 
 ## How to use
 Installation
@@ -18,7 +18,52 @@ Supported types
 - Currently supported input types - numpy, pillow, str(both path and url), base64, **auto**
 - Currently supported output types - numpy, pillow, str, base64
 
-![loadimg](https://github.com/not-lain/loadimg/blob/main/loadimg.png?raw=true)
+
+<p align="center">
+  <img src="https://github.com/not-lain/loadimg/blob/main/loadimg.png?raw=true">
+</p>
+
+
+The base64 is now compatible with most APIs, now supporting Hugging Face, OpenAI and FAL
+
+```python
+from loadimg import load_img
+from huggingface_hub import InferenceClient
+
+# or load a local image
+my_b64_img = load_img("https://cdn.britannica.com/61/93061-050-99147DCE/Statue-of-Liberty-Island-New-York-Bay.jpg", output_type="base64" ) 
+
+client = InferenceClient(api_key="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+
+messages = [
+	{
+		"role": "user",
+		"content": [
+			{
+				"type": "text",
+				"text": "Describe this image in one sentence."
+			},
+			{
+				"type": "image_url",
+				"image_url": {
+					"url": my_b64_img # base64 allows using images without uploading them to the web
+				}
+			}
+		]
+	}
+]
+
+stream = client.chat.completions.create(
+    model="meta-llama/Llama-3.2-11B-Vision-Instruct", 
+	messages=messages, 
+	max_tokens=500,
+	stream=True
+)
+
+for chunk in stream:
+    print(chunk.choices[0].delta.content, end="")
+```
+
 
 ## Contributions
 
