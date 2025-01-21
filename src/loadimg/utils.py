@@ -15,7 +15,7 @@ import uuid
 
 def load_img(
     img: Union[str, bytes, np.ndarray, Image.Image],
-    output_type: Literal["pil", "numpy", "str", "base64"] = "pil",
+    output_type: Literal["pil", "numpy", "str", "base64", "ascii", "ansi"] = "pil",
     input_type: Literal["auto", "base64", "file", "url", "numpy", "pil"] = "auto",
 ) -> Any:
     """Loads an image from various sources and returns it in a specified format.
@@ -24,45 +24,32 @@ def load_img(
         img: The input image. Can be a base64 string, a file path, a URL,
             a NumPy array, or a Pillow Image object.
         output_type: The desired output type. Can be "pil" (Pillow Image),
-            "numpy" (NumPy array), "str" (file path), or "base64" (base64 string).
+            "numpy" (NumPy array), "str" (file path), "base64" (base64 string),
+            "ascii" (ASCII art), or "ansi" (ANSI art).
         input_type: The type of the input image. If set to "auto", the function
-            will try to automatically determine the type. Otherwise, it will
-            assume the input is of the specified type.
+            will try to automatically determine the type.
 
     Returns:
         The loaded image in the specified output type.
 
-    Raises:
-        ValueError: If the input type is invalid or if the image cannot be loaded.
-
     Examples:
         ```python
-        from loadimg import load_img
+        # Convert to ASCII art
+        ascii_art = load_img("image.jpg", output_type="ascii")
 
-        # Load an image from a base64 string and return it as a Pillow Image.
-        img = load_img(img="data:image/png;base64,...", output_type="pil")
-
-        # Load an image from a file path and return it as a NumPy array.
-        img = load_img(img="path/to/image.jpg", output_type="numpy")
-
-        # Load an image from a URL and return it as a file path.
-        img = load_img(img="https://example.com/image.png", output_type="str")
-
-        # Load an image from a NumPy array and return it as a base64 string.
-        img = load_img(img=np.array(...), output_type="base64")
+        # Convert to ANSI art
+        ansi_art = load_img("image.png", output_type="ansi")
         ```
     """
     img, original_name = load(img, input_type)
+
     if output_type == "pil":
         return img
     elif output_type == "numpy":
         return np.array(img)
     elif output_type == "str":
         secure_temp_dir = tempfile.mkdtemp(prefix="loadimg_", suffix="_folder")
-        if original_name:
-            file_name = original_name
-        else:
-            file_name = f"{uuid.uuid4()}.png"
+        file_name = original_name or f"{uuid.uuid4()}.png"
         path = os.path.join(secure_temp_dir, file_name)
         img.save(path)
         return path
@@ -72,6 +59,12 @@ def load_img(
             img.save(buffer, format=img_type)
             img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
         return f"data:image/{img_type.lower()};base64,{img_str}"
+    elif output_type == "ascii":
+        return image_to_ascii(img)
+    elif output_type == "ansi":
+        return image_to_ansi(img)
+    else:
+        raise ValueError(f"Unsupported output type: {output_type}")
 
 
 def starts_with(pattern: str, url: str):
@@ -178,3 +171,42 @@ def isBase64(sb):
         return base64.b64encode(base64.b64decode(sb_bytes)) == sb_bytes
     except Exception:
         return False
+
+
+def image_to_ascii(
+    image: Image.Image, new_width: int = 100, ascii_chars: str = "@%#*+=-:. "
+) -> str:
+    """Convert a Pillow image to ASCII art."""
+    grayscale_image = image.convert("L")
+    width, height = grayscale_image.size
+    aspect_ratio = height / width
+    new_height = int(aspect_ratio * new_width)
+    resized_image = grayscale_image.resize((new_width, new_height))
+
+    pixels = resized_image.getdata()
+    ascii_str = ""
+    for i, pixel_value in enumerate(pixels):
+        index = (pixel_value * (len(ascii_chars) - 1)) // 255
+        ascii_str += ascii_chars[index]
+        if (i + 1) % new_width == 0:
+            ascii_str += "\n"
+    return ascii_str
+
+
+def image_to_ansi(image: Image.Image, new_width: int = 100) -> str:
+    """Convert a Pillow image to ANSI art using 24-bit color codes."""
+    width, height = image.size
+    aspect_ratio = height / width
+    new_height = int(aspect_ratio * new_width)
+    resized_image = image.resize((new_width, new_height))
+    rgb_image = resized_image.convert("RGB")
+
+    ansi_lines = []
+    for y in range(new_height):
+        line = []
+        for x in range(new_width):
+            r, g, b = rgb_image.getpixel((x, y))
+            ansi_code = f"\x1b[48;2;{r};{g};{b}m "
+            line.append(ansi_code)
+        ansi_lines.append("".join(line) + "\x1b[0m")
+    return "\n".join(ansi_lines)
