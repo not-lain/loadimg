@@ -1,6 +1,7 @@
 import pathlib
 from setuptools import find_packages, setup
 
+
 def get_version() -> str:
     rel_path = "src/loadimg/__init__.py"
     with open(rel_path, "r") as fp:
@@ -9,6 +10,20 @@ def get_version() -> str:
                 delim = '"' if '"' in line else "'"
                 return line.split(delim)[1]
     raise RuntimeError("Unable to find version string.")
+
+
+extras = {
+    "testing": [
+        "setuptools",
+        "wheel",
+        "typing",
+        "pillow",
+        "numpy",
+        "requests",
+        "ruff",
+        "pytest",
+    ]
+}
 
 setup(
     name="loadimg",
@@ -24,6 +39,7 @@ setup(
     license="Apache 2.0 License",
     package_dir={"": "src"},
     packages=find_packages("src"),
+    extras_require=extras,
     include_package_data=True,
     classifiers=["Topic :: Utilities", "Programming Language :: Python :: 3.9"],
     requires=["setuptools", "wheel", "typing", "pillow", "numpy", "requests"],
