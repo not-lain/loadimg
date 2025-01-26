@@ -43,4 +43,9 @@ setup(
     include_package_data=True,
     classifiers=["Topic :: Utilities", "Programming Language :: Python :: 3.9"],
     requires=["setuptools", "wheel", "typing", "pillow", "numpy", "requests"],
+    entry_points={
+        "console_scripts": [
+            "loadimg=loadimg.loadimg:main",
+        ],
+    },
 )
