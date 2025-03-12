@@ -1,4 +1,4 @@
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union, List, Dict
 from io import BytesIO
 import os
 import requests
@@ -8,6 +8,10 @@ import tempfile
 import base64
 import re
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+import glob
+from tqdm import tqdm
 
 # TODO:
 # support other input types such as lists, tensors, ...
@@ -74,6 +78,66 @@ def load_img(
             
     except Exception as e:
         raise ValueError(f"Failed to load image: {str(e)}") from e
+
+
+def load_imgs(
+    imgs: Union[str, List[str], List[Union[str, bytes, np.ndarray, Image.Image]]],
+    output_type: Literal["pil", "numpy", "str", "base64", "ascii", "ansi"] = "pil",
+    input_type: Literal["auto", "base64", "file", "url", "numpy", "pil"] = "auto",
+    max_workers: int = 4,
+    glob_pattern: str = "*",
+) -> Dict[str, Any]:
+    """Loads multiple images from various sources.
+
+    Args:
+        imgs: Can be:
+            - Directory path (str)
+            - List of image sources
+            - Glob pattern
+        output_type: The desired output type
+        input_type: The type of input images
+        max_workers: Max number of parallel workers
+        glob_pattern: Pattern for filtering files when imgs is a directory
+
+    Returns:
+        Dict[str, Any]: Dictionary mapping filenames to loaded images
+    """
+    image_paths = []
+    
+    # Handle different input types
+    if isinstance(imgs, str):
+        if os.path.isdir(imgs):
+            # Load from directory
+            pattern = os.path.join(imgs, glob_pattern)
+            image_paths = glob.glob(pattern)
+        else:
+            # Single file or URL
+            image_paths = [imgs]
+    else:
+        # List of sources
+        image_paths = imgs
+
+    results = {}
+    
+    # Use ThreadPoolExecutor for parallel processing
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Create tasks
+        future_to_path = {
+            executor.submit(load_img, path, output_type, input_type): path
+            for path in image_paths
+        }
+        
+        # Process with progress bar
+        for future in tqdm(future_to_path, desc="Loading images"):
+            path = future_to_path[future]
+            try:
+                result = future.result()
+                key = os.path.basename(path) if isinstance(path, str) else str(uuid.uuid4())
+                results[key] = result
+            except Exception as e:
+                print(f"Failed to load {path}: {e}")
+
+    return results
 
 
 def starts_with(pattern: str, url: str):
