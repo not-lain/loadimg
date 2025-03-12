@@ -41,30 +41,39 @@ def load_img(
         ansi_art = load_img("image.png", output_type="ansi")
         ```
     """
-    img, original_name = load(img, input_type)
+    try:
+        img, original_name = load(img, input_type)
+        
+        # Validate loaded image
+        is_valid, error_msg = validate_image(img)
+        if not is_valid:
+            raise ValueError(f"Invalid image: {error_msg}")
 
-    if output_type == "pil":
-        return img
-    elif output_type == "numpy":
-        return np.array(img)
-    elif output_type == "str":
-        secure_temp_dir = tempfile.mkdtemp(prefix="loadimg_", suffix="_folder")
-        file_name = original_name or f"{uuid.uuid4()}.png"
-        path = os.path.join(secure_temp_dir, file_name)
-        img.save(path)
-        return path
-    elif output_type == "base64":
-        img_type = img.format or "PNG"
-        with BytesIO() as buffer:
-            img.save(buffer, format=img_type)
-            img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
-        return f"data:image/{img_type.lower()};base64,{img_str}"
-    elif output_type == "ascii":
-        return image_to_ascii(img)
-    elif output_type == "ansi":
-        return image_to_ansi(img)
-    else:
-        raise ValueError(f"Unsupported output type: {output_type}")
+        if output_type == "pil":
+            return img
+        elif output_type == "numpy":
+            return np.array(img)
+        elif output_type == "str":
+            secure_temp_dir = tempfile.mkdtemp(prefix="loadimg_", suffix="_folder")
+            file_name = original_name or f"{uuid.uuid4()}.png"
+            path = os.path.join(secure_temp_dir, file_name)
+            img.save(path)
+            return path
+        elif output_type == "base64":
+            img_type = img.format or "PNG"
+            with BytesIO() as buffer:
+                img.save(buffer, format=img_type)
+                img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            return f"data:image/{img_type.lower()};base64,{img_str}"
+        elif output_type == "ascii":
+            return image_to_ascii(img)
+        elif output_type == "ansi":
+            return image_to_ansi(img)
+        else:
+            raise ValueError(f"Unsupported output type: {output_type}")
+            
+    except Exception as e:
+        raise ValueError(f"Failed to load image: {str(e)}") from e
 
 
 def starts_with(pattern: str, url: str):
@@ -210,3 +219,25 @@ def image_to_ansi(image: Image.Image, new_width: int = 100) -> str:
             line.append(ansi_code)
         ansi_lines.append("".join(line) + "\x1b[0m")
     return "\n".join(ansi_lines)
+
+
+def validate_image(img: Image.Image) -> tuple[bool, str]:
+    """Validates an image for basic requirements.
+    
+    Args:
+        img: PIL Image to validate
+        
+    Returns:
+        tuple[bool, str]: (is_valid, error_message)
+    """
+    if not isinstance(img, Image.Image):
+        return False, "Input is not a PIL Image"
+    
+    if img.size[0] * img.size[1] == 0:
+        return False, "Image has zero dimensions"
+        
+    try:
+        img.verify()
+        return True, ""
+    except Exception as e:
+        return False, f"Image verification failed: {str(e)}"
