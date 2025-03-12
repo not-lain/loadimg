@@ -15,8 +15,18 @@ from loadimg import load_img
 load_img(any_img_type_here,output_type="pil",input_type="auto") 
 ```
 Supported types
-- Currently supported input types - numpy, pillow, str(both path and url), base64, **auto**
-- Currently supported output types - numpy, pillow, str, base64
+- Currently supported **input types** :
+	- numpy
+	- pillow 
+	- str(both path and url)
+	- base64
+	- **auto**
+
+- Currently supported **output types** :
+	- numpy
+	- pillow
+	- str
+	- base64
 
 
 <p align="center">
