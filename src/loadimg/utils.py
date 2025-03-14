@@ -84,7 +84,7 @@ def load_imgs(
     imgs: Union[str, List[str], List[Union[str, bytes, np.ndarray, Image.Image]]],
     output_type: Literal["pil", "numpy", "str", "base64", "ascii", "ansi"] = "pil",
     input_type: Literal["auto", "base64", "file", "url", "numpy", "pil"] = "auto",
-    max_workers: int = 4,
+    max_workers: int = 1,
     glob_pattern: str = "*",
 ) -> Dict[str, Any]:
     """Loads multiple images from various sources.
