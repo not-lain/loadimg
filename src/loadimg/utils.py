@@ -81,7 +81,7 @@ def load_img(
 
 
 def load_imgs(
-    imgs: Union[str, List[str], List[Union[str, bytes, np.ndarray, Image.Image]]],
+    imgs: Union[str, List[Union[str, bytes, np.ndarray, Image.Image]]],
     output_type: Literal["pil", "numpy", "str", "base64", "ascii", "ansi"] = "pil",
     input_type: Literal["auto", "base64", "file", "url", "numpy", "pil"] = "auto",
     max_workers: int = 1,
