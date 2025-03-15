@@ -115,7 +115,7 @@ def load_imgs(
             image_paths = [imgs]
     else:
         # List of sources
-        image_paths = imgs
+        image_paths = imgs if isinstance(imgs, list) else [imgs]
 
     results = {}
     
