@@ -48,10 +48,10 @@ def load_img(
         img, original_name = load(img, input_type)
         
         # Validate loaded image
-        is_valid, error_msg = validate_image(img)
+        is_valid, error_msg = validate_image(img.copy())
         if not is_valid:
             raise ValueError(f"Invalid image: {error_msg}")
-
+        
         if output_type == "pil":
             return img
         elif output_type == "numpy":
