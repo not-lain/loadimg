@@ -22,6 +22,7 @@ extras = {
         "requests",
         "ruff",
         "pytest",
+        "tqdm",
     ]
 }
 
@@ -42,7 +43,7 @@ setup(
     extras_require=extras,
     include_package_data=True,
     classifiers=["Topic :: Utilities", "Programming Language :: Python :: 3.9"],
-    requires=["setuptools", "wheel", "typing", "pillow", "numpy", "requests"],
+    requires=["setuptools", "wheel", "typing", "pillow", "numpy", "requests", "tqdm"],
     entry_points={
         "console_scripts": [
             "loadimg=loadimg.loadimg:main",

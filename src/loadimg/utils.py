@@ -1,4 +1,4 @@
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union, List, Dict
 from io import BytesIO
 import os
 import requests
@@ -8,6 +8,9 @@ import tempfile
 import base64
 import re
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+import glob
+from tqdm import tqdm
 
 # TODO:
 # support other input types such as lists, tensors, ...
@@ -41,30 +44,99 @@ def load_img(
         ansi_art = load_img("image.png", output_type="ansi")
         ```
     """
-    img, original_name = load(img, input_type)
+    try:
+        img, original_name = load(img, input_type)
+        
+        # Validate loaded image
+        is_valid, error_msg = validate_image(img.copy())
+        if not is_valid:
+            raise ValueError(f"Invalid image: {error_msg}")
+        
+        if output_type == "pil":
+            return img
+        elif output_type == "numpy":
+            return np.array(img)
+        elif output_type == "str":
+            secure_temp_dir = tempfile.mkdtemp(prefix="loadimg_", suffix="_folder")
+            file_name = original_name or f"{uuid.uuid4()}.png"
+            path = os.path.join(secure_temp_dir, file_name)
+            img.save(path)
+            return path
+        elif output_type == "base64":
+            img_type = img.format or "PNG"
+            with BytesIO() as buffer:
+                img.save(buffer, format=img_type)
+                img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            return f"data:image/{img_type.lower()};base64,{img_str}"
+        elif output_type == "ascii":
+            return image_to_ascii(img)
+        elif output_type == "ansi":
+            return image_to_ansi(img)
+        else:
+            raise ValueError(f"Unsupported output type: {output_type}")
+            
+    except Exception as e:
+        raise ValueError(f"Failed to load image: {str(e)}") from e
 
-    if output_type == "pil":
-        return img
-    elif output_type == "numpy":
-        return np.array(img)
-    elif output_type == "str":
-        secure_temp_dir = tempfile.mkdtemp(prefix="loadimg_", suffix="_folder")
-        file_name = original_name or f"{uuid.uuid4()}.png"
-        path = os.path.join(secure_temp_dir, file_name)
-        img.save(path)
-        return path
-    elif output_type == "base64":
-        img_type = img.format or "PNG"
-        with BytesIO() as buffer:
-            img.save(buffer, format=img_type)
-            img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
-        return f"data:image/{img_type.lower()};base64,{img_str}"
-    elif output_type == "ascii":
-        return image_to_ascii(img)
-    elif output_type == "ansi":
-        return image_to_ansi(img)
+
+def load_imgs(
+    imgs: Union[str, List[Union[str, bytes, np.ndarray, Image.Image]]],
+    output_type: Literal["pil", "numpy", "str", "base64", "ascii", "ansi"] = "pil",
+    input_type: Literal["auto", "base64", "file", "url", "numpy", "pil"] = "auto",
+    max_workers: int = 1,
+    glob_pattern: str = "*",
+) -> Dict[str, Any]:
+    """Loads multiple images from various sources.
+
+    Args:
+        imgs: Can be:
+            - Directory path (str)
+            - List of image sources
+            - Glob pattern
+        output_type: The desired output type
+        input_type: The type of input images
+        max_workers: Max number of parallel workers
+        glob_pattern: Pattern for filtering files when imgs is a directory
+
+    Returns:
+        Dict[str, Any]: Dictionary mapping filenames to loaded images
+    """
+    image_paths = []
+    
+    # Handle different input types
+    if isinstance(imgs, str):
+        if os.path.isdir(imgs):
+            # Load from directory
+            pattern = os.path.join(imgs, glob_pattern)
+            image_paths = glob.glob(pattern)
+        else:
+            # Single file or URL
+            image_paths = [imgs]
     else:
-        raise ValueError(f"Unsupported output type: {output_type}")
+        # List of sources
+        image_paths = imgs if isinstance(imgs, list) else [imgs]
+
+    results = {}
+    
+    # Use ThreadPoolExecutor for parallel processing
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Create tasks
+        future_to_path = {
+            executor.submit(load_img, path, output_type, input_type): path
+            for path in image_paths
+        }
+        
+        # Process with progress bar
+        for future in tqdm(future_to_path, desc="Loading images"):
+            path = future_to_path[future]
+            try:
+                result = future.result()
+                key = os.path.basename(path) if isinstance(path, str) else str(uuid.uuid4())
+                results[key] = result
+            except Exception as e:
+                print(f"Failed to load {path}: {e}")
+
+    return results
 
 
 def starts_with(pattern: str, url: str):
@@ -210,3 +282,25 @@ def image_to_ansi(image: Image.Image, new_width: int = 100) -> str:
             line.append(ansi_code)
         ansi_lines.append("".join(line) + "\x1b[0m")
     return "\n".join(ansi_lines)
+
+
+def validate_image(img: Image.Image) -> tuple[bool, str]:
+    """Validates an image for basic requirements.
+    
+    Args:
+        img: PIL Image to validate
+        
+    Returns:
+        tuple[bool, str]: (is_valid, error_message)
+    """
+    if not isinstance(img, Image.Image):
+        return False, "Input is not a PIL Image"
+    
+    if img.size[0] * img.size[1] == 0:
+        return False, "Image has zero dimensions"
+        
+    try:
+        img.verify()
+        return True, ""
+    except Exception as e:
+        return False, f"Image verification failed: {str(e)}"

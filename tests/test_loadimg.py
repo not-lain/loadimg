@@ -7,7 +7,7 @@ import base64
 from unittest.mock import patch, MagicMock
 
 from loadimg import load_img
-from loadimg.utils import starts_with, download_image, isBase64
+from loadimg.utils import starts_with, download_image, isBase64, validate_image
 
 
 class TestImageLoader(unittest.TestCase):
@@ -151,6 +151,38 @@ class TestImageLoader(unittest.TestCase):
 
         ansi_art = load_img("https://example.com/sample.png", output_type="ansi")
         self.assertIn("\x1b[48;2;", ansi_art)
+
+    # New tests for validate_image
+    def test_validate_image_non_pil(self):
+        # Test with a non-PIL input
+        is_valid, error = validate_image("not image")
+        self.assertFalse(is_valid)
+        self.assertEqual(error, "Input is not a PIL Image")
+
+    def test_validate_image_zero_dimensions(self):
+        # Create an image with zero width to simulate zero dimensions
+        img = Image.new("RGB", (0, 10))
+        is_valid, error = validate_image(img)
+        self.assertFalse(is_valid)
+        self.assertEqual(error, "Image has zero dimensions")
+
+    def test_validate_image_valid(self):
+        # Create a valid image and override verify to simulate success
+        img = Image.new("RGB", (10, 10))
+        img.verify = lambda: None
+        is_valid, error = validate_image(img)
+        self.assertTrue(is_valid)
+        self.assertEqual(error, "")
+
+    def test_validate_image_invalid_verify(self):
+        # Create an image and override verify to simulate failure
+        img = Image.new("RGB", (10, 10))
+        def raise_error():
+            raise ValueError("fake error")
+        img.verify = raise_error
+        is_valid, error = validate_image(img)
+        self.assertFalse(is_valid)
+        self.assertIn("Image verification failed: fake error", error)
 
     # Existing utility tests remain unchanged
     def test_starts_with(self):
