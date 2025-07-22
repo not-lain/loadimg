@@ -14,7 +14,7 @@ def main():
     parser.add_argument("input", help="Input image (file path, URL, or base64 string)")
     parser.add_argument(
         "--output-type",
-        choices=["pil", "numpy", "str", "base64", "ascii", "ansi"],
+        choices=["pil", "numpy", "str", "base64", "ascii", "ansi", "url"],
         default="ansi",
         help="Output format (default: ansi)",
     )
