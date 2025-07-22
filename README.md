@@ -77,10 +77,10 @@ for chunk in stream:
 
 ## Contributions
 
-- [x] thanks to [@KingNish24](https://github.com/KingNish24) for improving base64 support and adding the `input_type` parameter
+- [x] - thanks to [@KingNish24](https://github.com/KingNish24) for improving base64 support and adding the `input_type` parameter and adding the `url` output type
 - [x] thanks to [@Saptarshi-Bandopadhyay](https://github.com/Saptarshi-Bandopadhyay) for supporting base64 and improving the docstrings
 - [x] thanks to [@Abbhiishek](https://github.com/Abbhiishek) for improving image naming
-
+- [x] thanks to [@BouajilaHamza](https://github.com/BouajilaHamza) for adding multiple image support
 <a href="https://github.com/not-lain/loadimg/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=not-lain/loadimg" />
 </a>
