@@ -50,6 +50,17 @@ class TestImageLoader(unittest.TestCase):
         self.assertIn("\x1b[48;2;", ansi_art)
         self.assertIn("\x1b[0m", ansi_art)
 
+    @patch("loadimg.utils.requests.post")
+    def test_load_img_from_file_url(self, mock_post):
+        # Mock the response from the upload service
+        mock_response = MagicMock()
+        mock_response.text = '{"files": [{"url": "https://fake.uguu.se/fake.png"}]}'
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        url = load_img(self.sample_image_path, output_type="url")
+        self.assertEqual(url, "https://fake.uguu.se/fake.png")
+
     def test_load_img_from_base64(self):
         # Existing tests
         img = load_img(f"data:image/png;base64,{self.sample_base64}", output_type="pil")
@@ -81,6 +92,16 @@ class TestImageLoader(unittest.TestCase):
         self.assertIn("\x1b[48;2;", ansi_art)
         self.assertIn("\x1b[0m", ansi_art)
 
+    @patch("loadimg.utils.requests.post")
+    def test_load_img_from_base64_url(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.text = '{"files": [{"url": "https://fake.uguu.se/fake.png"}]}'
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        url = load_img(f"data:image/png;base64,{self.sample_base64}", output_type="url")
+        self.assertEqual(url, "https://fake.uguu.se/fake.png")
+
     def test_load_img_from_numpy(self):
         # Existing tests
         img = load_img(self.sample_numpy_array, output_type="pil")
@@ -102,6 +123,16 @@ class TestImageLoader(unittest.TestCase):
         ansi_art = load_img(self.sample_numpy_array, output_type="ansi")
         self.assertIn("48;2;", ansi_art)
 
+    @patch("loadimg.utils.requests.post")
+    def test_load_img_from_numpy_url(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.text = '{"files": [{"url": "https://fake.uguu.se/fake.png"}]}'
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        url = load_img(self.sample_numpy_array, output_type="url")
+        self.assertEqual(url, "https://fake.uguu.se/fake.png")
+
     def test_load_img_from_pil(self):
         # Existing tests
         img = load_img(self.sample_image, output_type="pil")
@@ -122,6 +153,16 @@ class TestImageLoader(unittest.TestCase):
 
         ansi_art = load_img(self.sample_image, output_type="ansi")
         self.assertTrue(ansi_art.count("\x1b[0m") >= 50)
+
+    @patch("loadimg.utils.requests.post")
+    def test_load_img_from_pil_url(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.text = '{"files": [{"url": "https://fake.uguu.se/fake.png"}]}'
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        url = load_img(self.sample_image, output_type="url")
+        self.assertEqual(url, "https://fake.uguu.se/fake.png")
 
     @patch("requests.get")
     def test_load_img_from_url(self, mock_get):
@@ -151,6 +192,24 @@ class TestImageLoader(unittest.TestCase):
 
         ansi_art = load_img("https://example.com/sample.png", output_type="ansi")
         self.assertIn("\x1b[48;2;", ansi_art)
+
+    @patch("loadimg.utils.requests.post")
+    @patch("requests.get")
+    def test_load_img_from_url_url(self, mock_get, mock_post):
+        # Mock download
+        mock_response_get = MagicMock()
+        mock_response_get.content = open(self.sample_image_path, "rb").read()
+        mock_response_get.raise_for_status.return_value = None
+        mock_get.return_value = mock_response_get
+
+        # Mock upload
+        mock_response_post = MagicMock()
+        mock_response_post.text = '{"files": [{"url": "https://fake.uguu.se/fake.png"}]}'
+        mock_response_post.raise_for_status.return_value = None
+        mock_post.return_value = mock_response_post
+
+        url = load_img("https://example.com/sample.png", output_type="url")
+        self.assertEqual(url, "https://fake.uguu.se/fake.png")
 
     # New tests for validate_image
     def test_validate_image_non_pil(self):
