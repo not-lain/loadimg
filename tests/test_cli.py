@@ -7,6 +7,23 @@ from loadimg.loadimg import main
 
 
 class TestCLI(unittest.TestCase):
+    @patch("loadimg.utils.requests.post")
+    @patch("argparse.ArgumentParser.parse_args")
+    def test_main_with_url_output_type(self, mock_args, mock_post):
+        # Mock upload response
+        mock_response = MagicMock()
+        mock_response.text = '{"files": [{"url": "https://fake.uguu.se/fake.png"}]}'
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        mock_args.return_value = MagicMock(
+            input=self.test_image_path, output_type="url", input_type="auto"
+        )
+
+        with patch("builtins.print") as mock_print:
+            exit_code = main()
+            self.assertEqual(exit_code, 0)
+            mock_print.assert_called()
     def setUp(self):
         # Create a temporary test image
         self.temp_dir = tempfile.TemporaryDirectory()
