@@ -11,6 +11,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 import glob
 from tqdm import tqdm
+import json
 
 # TODO:
 # support other input types such as lists, tensors, ...
@@ -90,7 +91,8 @@ def load_img(
                     response = requests.post(upload_url, files=files, timeout=15)
                     response.raise_for_status()
                     # The response body from uguu.se is expected to be the direct URL
-                    return response.text.strip()
+                    reply =  response.text.strip()
+                    return json.loads(reply)["files"][0]["url"]
                 except requests.exceptions.RequestException as e:
                     raise IOError(f"Failed to upload image to {upload_url}: {e}") from e
         elif output_type == "ascii":
