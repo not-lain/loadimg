@@ -11,6 +11,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 import glob
 from tqdm import tqdm
+import json
 
 # TODO:
 # support other input types such as lists, tensors, ...
@@ -18,7 +19,7 @@ from tqdm import tqdm
 
 def load_img(
     img: Union[str, bytes, np.ndarray, Image.Image],
-    output_type: Literal["pil", "numpy", "str", "base64", "ascii", "ansi"] = "pil",
+    output_type: Literal["pil", "numpy", "str", "base64", "ascii", "ansi", "url"] = "pil",
     input_type: Literal["auto", "base64", "file", "url", "numpy", "pil"] = "auto",
 ) -> Any:
     """Loads an image from various sources and returns it in a specified format.
@@ -28,7 +29,8 @@ def load_img(
             a NumPy array, or a Pillow Image object.
         output_type: The desired output type. Can be "pil" (Pillow Image),
             "numpy" (NumPy array), "str" (file path), "base64" (base64 string),
-            "ascii" (ASCII art), or "ansi" (ANSI art).
+            "ascii" (ASCII art), "ansi" (ANSI art), or "url" (a public URL
+            after uploading to a temporary hosting service).
         input_type: The type of the input image. If set to "auto", the function
             will try to automatically determine the type.
 
@@ -42,6 +44,11 @@ def load_img(
 
         # Convert to ANSI art
         ansi_art = load_img("image.png", output_type="ansi")
+
+        # Upload an image and get a temporary URL
+        # Note: This requires an active internet connection.
+        # url = load_img("image.png", output_type="url")
+        # print(f"Image available at: {url}")
         ```
     """
     try:
@@ -68,6 +75,26 @@ def load_img(
                 img.save(buffer, format=img_type)
                 img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
             return f"data:image/{img_type.lower()};base64,{img_str}"
+        elif output_type == "url":
+            upload_url = "https://uguu.se/upload"
+            with BytesIO() as buffer:
+                img_format = img.format or "PNG"
+                img.save(buffer, format=img_format)
+                buffer.seek(0)
+                
+                file_name = original_name or f"{uuid.uuid4()}.{img_format.lower()}"
+
+                files = {'files[]': (file_name, buffer.getvalue(), f'image/{img_format.lower()}')}
+                
+                try:
+                    # Added a timeout for robustness
+                    response = requests.post(upload_url, files=files, timeout=15)
+                    response.raise_for_status()
+                    # The response body from uguu.se is expected to be the direct URL
+                    reply =  response.text.strip()
+                    return json.loads(reply)["files"][0]["url"]
+                except requests.exceptions.RequestException as e:
+                    raise IOError(f"Failed to upload image to {upload_url}: {e}") from e
         elif output_type == "ascii":
             return image_to_ascii(img)
         elif output_type == "ansi":
@@ -81,7 +108,7 @@ def load_img(
 
 def load_imgs(
     imgs: Union[str, List[Union[str, bytes, np.ndarray, Image.Image]]],
-    output_type: Literal["pil", "numpy", "str", "base64", "ascii", "ansi"] = "pil",
+    output_type: Literal["pil", "numpy", "str", "base64", "ascii", "ansi", "url"] = "pil",
     input_type: Literal["auto", "base64", "file", "url", "numpy", "pil"] = "auto",
     max_workers: int = 1,
     glob_pattern: str = "*",
@@ -93,7 +120,7 @@ def load_imgs(
             - Directory path (str)
             - List of image sources
             - Glob pattern
-        output_type: The desired output type
+        output_type: The desired output type. Can be "pil", "numpy", "str", "base64", "ascii", "ansi", or "url".
         input_type: The type of input images
         max_workers: Max number of parallel workers
         glob_pattern: Pattern for filtering files when imgs is a directory
