@@ -272,6 +272,25 @@ def isBase64(sb):
         return False
 
 
+def resize_image(image: Image.Image, max_width: int) -> Image.Image:
+    """Resizes a Pillow image to a maximum width maintaining the aspect ratio.
+
+    Args:
+        image: The PIL Image to resize.
+        max_width: The maximum width allowed.
+
+    Returns:
+        The resized PIL Image.
+    """
+    width, height = image.size
+    if width <= max_width:
+        return image
+    
+    aspect_ratio = height / width
+    new_height = int(aspect_ratio * max_width)
+    return image.resize((max_width, new_height))
+
+
 def image_to_ascii(
     image: Image.Image, new_width: int = 100, ascii_chars: str = "@%#*+=-:. "
 ) -> str:
